@@ -2,7 +2,7 @@
 
 Solución para la prueba técnica de **Integrador IA Agents**.
 
-Esta herramienta recibe un **ZIP code de Estados Unidos** y devuelve un JSON enriquecido con contexto útil sobre esa ubicación. La idea es que este JSON pueda ser consumido directamente por un agente de IA, bot o sistema externo.
+Esta herramienta recibe un **ZIP code de Estados Unidos(CONOCIDO COMO CODIGO POSTAL AQUI EN EL SALVADOR** y devuelve un JSON enriquecido con contexto útil sobre esa ubicación. La idea es que este JSON pueda ser consumido directamente por un agente de IA, bot o sistema externo.
 
 ---
 
