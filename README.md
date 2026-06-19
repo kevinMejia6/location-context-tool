@@ -93,11 +93,6 @@ Puedes crear tu archivo `.env` copiando el ejemplo con el sigueinte comando:
 cp .env.example .env
 ```
 
-En Windows CMD también puedes usar:
-
-```cmd
-copy .env.example .env
-```
 
 ### Contenido recomendado del archivo `.env`
 
