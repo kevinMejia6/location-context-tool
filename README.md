@@ -2,7 +2,7 @@
 
 Solución para la prueba técnica de **Integrador IA Agents**.
 
-La herramienta recibe uno o varios ZIP codes de Estados Unidos y devuelve un JSON enriquecido con ubicación, clima actual, calidad del aire, un `outdoor_score` y contexto preparado para un agente o bot.
+La herramienta recibe uno o varios ZIP codes de Estados Unidos **(Mas conocido aqui en El Salvador como codigo postal)** y devuelve un JSON enriquecido con ubicación, clima actual, calidad del aire, un `outdoor_score` y contexto preparado para un agente o bot.
 
 ## Funcionalidades
 
@@ -17,7 +17,7 @@ La herramienta recibe uno o varios ZIP codes de Estados Unidos y devuelve un JSO
 - Consultas de clima y aire en paralelo con `Promise.all`.
 - Conversión de códigos WMO a condiciones legibles.
 - Cálculo de `outdoor_score` entre 1 y 10.
-- Caché sencillo en memoria.
+- Caché en memoria.
 - Errores estructurados en JSON.
 - Pruebas unitarias con el test runner de Node.js.
 
@@ -41,7 +41,7 @@ location-context-tool/
 │   │   ├── index.js                  # Entrada para ejecutar desde consola
 │   │   ├── locationContext.js        # Flujo principal y caché
 │   │   └── server.js                 # Servidor Express y endpoints
-│   ├── test/
+│   ├── test/                         # Pruebas en cada archivo
 │   │   ├── airQuality.test.js
 │   │   ├── outdoorScore.test.js
 │   │   ├── weatherCodes.test.js
@@ -133,7 +133,7 @@ Sin argumentos se utiliza `ZIP_CODE` del archivo `.env`:
 npm run cli
 ```
 
-## Servidor HTTP y frontend
+## Servidor HTTP y frontend (Extra)
 
 Para iniciar el servidor:
 
@@ -155,7 +155,7 @@ GET /context?zip=80203
 GET /context?zip=80203,90210,10001
 ```
 
-También puedes utilizar Postman o curl:
+También se puede utilizar Postman o curl:
 
 ```bash
 curl "http://localhost:3000/context?zip=80203"
@@ -175,7 +175,7 @@ curl "http://localhost:3000/context?zip=80203"
 
 ## Mapeo de condiciones WMO
 
-Open-Meteo devuelve un número en `weathercode`. El proyecto lo agrupa así:
+Open-Meteo devuelve un número en `weathercode`. En el proyecto lo agrupe así:
 
 | Código | Condición |
 | --- | --- |
@@ -194,7 +194,7 @@ Los códigos que no pertenecen a un grupo se muestran como `Condición desconoci
 
 ## Lógica del outdoor score
 
-El puntaje comienza en 10 y resta puntos según cuatro factores:
+El puntaje comienza en 10 y resta puntos según cuatro factores, al no darme una escala de calificacion, yo obtene por usar rango por numeros:
 
 - Temperatura: hasta 3 puntos.
 - Velocidad del viento: hasta 3 puntos.
@@ -257,7 +257,7 @@ Las pruebas cubren:
 
 ### El puerto 3000 está ocupado
 
-Si aparece `EADDRINUSE`, significa que otro proceso ya utiliza el puerto. Detén el servidor anterior con `Ctrl + C` o utiliza temporalmente otro puerto:
+Si aparece `EADDRINUSE`, significa que otro proceso ya utiliza el puerto. Detengan el servidor anterior con `Ctrl + C` o utiliza temporalmente otro puerto:
 
 ```powershell
 $env:PORT=3001
