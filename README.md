@@ -8,7 +8,7 @@ La herramienta recibe uno o varios ZIP codes de Estados Unidos y devuelve un JSO
 
 - Ejecución desde consola.
 - API HTTP con Express.
-- Frontend visual para probar la herramienta(Fue agregado como extra para tener mejor visualizacion de los resultados, y consumo de la api creada.
+- Frontend visual para probar la herramienta **(Fue agregado como extra para tener mejor visualizacion de los resultados, y consumo de la api creada.)**
 - Soporte para uno o varios ZIP codes.
 - Validación de ZIP de exactamente cinco dígitos.
 - Ubicación mediante Zippopotam.
