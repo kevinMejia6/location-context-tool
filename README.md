@@ -177,31 +177,48 @@ curl "http://localhost:3000/context?zip=80203"
 
 Open-Meteo devuelve un número en `weathercode`. En el proyecto lo agrupe así:
 
-| Código | Condición |
-| --- | --- |
-| 0 | Despejado |
-| 1, 2 | Parcialmente nublado |
-| 3 | Nublado |
-| 45, 48 | Niebla |
-| 51, 53, 55, 56, 57 | Llovizna |
-| 61, 63, 65, 66, 67 | Lluvia |
-| 71, 73, 75, 77 | Nieve |
-| 80, 81, 82 | Chubascos |
-| 85, 86 | Chubascos de nieve |
-| 95, 96, 99 | Tormenta |
+| Código             | Condición            |
+| ------------------ | -------------------- |
+| 0                  | Despejado            |
+| 1, 2               | Parcialmente nublado |
+| 3                  | Nublado              |
+| 45, 48             | Niebla               |
+| 51, 53, 55, 56, 57 | Llovizna             |
+| 61, 63, 65, 66, 67 | Lluvia               |
+| 71, 73, 75, 77     | Nieve                |
+| 80, 81, 82         | Chubascos            |
+| 85, 86             | Chubascos de nieve   |
+| 95, 96, 99         | Tormenta             |
 
 Los códigos que no pertenecen a un grupo se muestran como `Condición desconocida`.
 
 ## Lógica del outdoor score
 
-El puntaje comienza en 10 y resta puntos según cuatro factores, al no darme una escala de calificacion, yo obtene por usar rango por numeros:
+La prueba no proporciona una fórmula específica para calcular el `outdoor_score`, por lo que opté por utilizar un sistema sencillo de penalizaciones.
 
-- Temperatura: hasta 3 puntos.
-- Velocidad del viento: hasta 3 puntos.
-- Condición climática: hasta 4 puntos.
-- Calidad del aire: hasta 4 puntos.
+El puntaje comienza en **10**, que representa condiciones ideales para realizar actividades al aire libre. Después se restan puntos según cuatro factores:
 
-El resultado siempre se mantiene entre 1 y 10. La fórmula es una regla propia, sencilla y explicable; no representa un índice meteorológico oficial.
+- **Temperatura:** resta entre 0 y 3 puntos.
+- **Velocidad del viento:** resta entre 0 y 3 puntos.
+- **Condición climática:** resta entre 0 y 4 puntos.
+- **Calidad del aire (AQI):** resta entre 0 y 4 puntos.
+
+Las condiciones más desfavorables reciben una penalización mayor. Por ejemplo, una tormenta resta más puntos que un cielo nublado, y una temperatura extrema resta más que una temperatura ligeramente fuera del rango ideal.
+
+Ejemplo:
+
+```text
+Puntaje inicial:        10
+Temperatura incómoda:   -2
+Viento moderado:        -1
+Lluvia:                 -3
+AQI bueno:               0
+Resultado final:         4
+```
+
+El resultado mínimo es **1** y el máximo es **10**. Si las penalizaciones hacen que el puntaje sea menor que 1, el sistema lo ajusta automáticamente a 1.
+
+Esta fórmula es una regla propia, sencilla y explicable; no representa un índice meteorológico oficial.
 
 ## Fallback por IP
 
@@ -246,12 +263,12 @@ Las pruebas cubren:
 
 ## Comandos disponibles
 
-| Comando | Descripción |
-| --- | --- |
-| `npm start` | Inicia el servidor y el frontend |
-| `npm run dev` | Inicia el servidor y reinicia al detectar cambios |
-| `npm run cli -- 80203` | Ejecuta una consulta desde consola |
-| `npm test` | Ejecuta las pruebas unitarias |
+| Comando                | Descripción                                       |
+| ---------------------- | ------------------------------------------------- |
+| `npm start`            | Inicia el servidor y el frontend                  |
+| `npm run dev`          | Inicia el servidor y reinicia al detectar cambios |
+| `npm run cli -- 80203` | Ejecuta una consulta desde consola                |
+| `npm test`             | Ejecuta las pruebas unitarias                     |
 
 ## Problemas comunes
 
