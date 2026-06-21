@@ -281,17 +281,17 @@ $env:PORT=3001
 npm start
 ```
 
-Después abre `http://localhost:3001`.
+Después abrir `http://localhost:3001`.
 
 ### Todos los resultados muestran fallback por IP
 
-Comprueba que esta variable exista en `.env`:
+Comprobar que esta variable exista en `.env`:
 
 ```env
 ZIPPOPOTAMUS_API_URL=https://api.zippopotam.us
 ```
 
-También verifica que `config.js` exporte `ZIPPOPOTAMUS_API_URL`.
+También verificar que `config.js` exporte `ZIPPOPOTAMUS_API_URL`.
 
 ## Limitaciones conocidas
 
