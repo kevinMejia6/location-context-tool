@@ -84,7 +84,7 @@ npm install
 
 Copia `.env.example` como `.env`.
 
-En PowerShell:
+En Consola:
 
 ```powershell
 Copy-Item .env.example .env
