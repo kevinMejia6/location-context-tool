@@ -1,90 +1,74 @@
-// ==========================================================
-// SERVIDOR HTTP
-// Este archivo levanta una API con Express para probar desde
-// navegador, Postman o desde el frontend incluido.
-// Endpoint principal: GET /context?zip=80203
-// ==========================================================
+// Este archivo configura y arranca el servidor HTTP usando Express.
+//  Define las rutas para manejar las solicitudes de contexto basadas en ZIP codes y sirve los archivos estáticos del frontend.
 
-// Carga variables de entorno desde un archivo .env si existe.
-require('dotenv').config();
+const express = require('express'); // Importamos el framework Express para crear el servidor HTTP y manejar las rutas y solicitudes.
+const cors = require('cors'); // Importamos el middleware CORS para permitir solicitudes desde el frontend que puede estar en un origen diferente al del backend.
+const path = require('path'); // Importamos el módulo path para manejar rutas de archivos y directorios de manera segura y compatible con diferentes sistemas operativos.
+const { PORT } = require('./config'); // Importamos la configuración del puerto desde el archivo config.js, que carga las variables de entorno y proporciona valores predeterminados.
 
-// Importa Express, el framework usado para crear el servidor HTTP.
-const express = require('express');
-
-// Importa CORS para permitir llamadas desde otros origenes si se necesita.
-const cors = require('cors');
-
-// Importa path para construir rutas de archivos compatibles con Windows/Linux/Mac.
-const path = require('path');
-
-// Importa funciones principales desde locationContext.js.
 const {
-  // Obtiene contexto para un solo ZIP.
   obtenerContextoPorZip,
+  obtenerContextoParaMultiplesZips
+} = require('./locationContext'); // Importamos las funciones principales para obtener el contexto de ubicación a partir de uno o varios ZIP codes, que se encargan de la lógica de negocio para procesar las solicitudes y devolver la información requerida.
 
-  // Obtiene contexto para varios ZIPs.
-  obtenerContextoParaMultiplesZips,
+const {
+  textoAListaDeZips,
+  buscarZipsInvalidos
+} = require('./utils/zipParser'); // Importamos las funciones de utilidad para procesar el texto de entrada y validar los ZIPs, que se utilizan para manejar las solicitudes entrantes y asegurar que los datos sean correctos antes de procesarlos.
 
-  // Convierte texto separado por comas en una lista limpia de ZIPs.
-  textoAListaDeZips
-} = require('./locationContext');
+const app = express(); // Creamos una instancia de la aplicación Express, que será nuestro servidor HTTP para manejar las solicitudes y respuestas.
 
-// Crea la aplicacion de Express.
-const app = express();
+app.use(cors()); // Habilitamos CORS para permitir que el frontend pueda hacer solicitudes a este servidor desde un origen diferente.
 
-// Define el puerto: usa process.env.PORT o 3000 por defecto.
-const PORT = process.env.PORT || 3000;
+app.use(express.json()); // Habilitamos el middleware para parsear el cuerpo de las solicitudes en formato JSON, lo que facilita la recepción de datos estructurados desde el frontend o clientes que consuman la API.
 
-// Activa CORS salvo que ENABLE_CORS sea exactamente "false".
-const ENABLE_CORS = process.env.ENABLE_CORS !== 'false';
+app.use(express.static(path.join(__dirname, '../../frontend'))); // Servimos los archivos estáticos del frontend desde el directorio especificado, lo que permite que el frontend se cargue correctamente cuando se accede al servidor a través de un navegador. La ruta se construye utilizando path.join para asegurar la compatibilidad entre sistemas operativos y evitar problemas con las rutas relativas.
 
-// Si CORS esta habilitado, registra el middleware cors().
-if (ENABLE_CORS) app.use(cors());
-
-// Permite que Express entienda cuerpos JSON en solicitudes HTTP.
-app.use(express.json());
-
-// Sirve los archivos del frontend como contenido estatico.
-// Asi http://localhost:3000 abre frontend/index.html.
-app.use(express.static(path.join(__dirname, '../../frontend')));
-
-// Ruta simple para verificar que el servidor esta vivo.
+// Permite comprobar rápidamente que el servidor está funcionando.
 app.get('/health', (req, res) => {
-  // Responde con un JSON pequeno de estado.
   res.json({ ok: true, message: 'Servidor funcionando' });
 });
 
-// Ruta principal que recibe uno o varios ZIPs por query string.
+// Recibe uno o varios ZIP codes y devuelve su contexto en JSON.
 app.get('/context', async (req, res) => {
-  // Lee req.query.zip y lo convierte en lista.
   const zips = textoAListaDeZips(req.query.zip);
 
-  // Si no hay ZIPs, responde HTTP 400 con un error claro.
   if (zips.length === 0) {
-    // return evita que la funcion continue despues de enviar el error.
     return res.status(400).json({
       ok: false,
       error: {
         code: 'ZIP_REQUIRED',
-        message: 'Envia un ZIP. Ejemplo: /context?zip=80203'
+        message: 'Envía un ZIP. Ejemplo: /context?zip=80203'
       }
     });
   }
 
-  // Si hay un ZIP llama a la funcion individual; si hay varios llama a la funcion multiple.
-  const resultado = zips.length === 1
-    ? await obtenerContextoPorZip(zips[0])
-    : await obtenerContextoParaMultiplesZips(zips);
+// Validamos que cada ZIP tenga el formato correcto de cinco dígitos. Si hay ZIPs inválidos, respondemos con un error detallando cuáles son.  
+  const invalidos = buscarZipsInvalidos(zips);
+  if (invalidos.length > 0) {
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: 'ZIP_INVALID',
+        message: 'Cada ZIP debe contener exactamente cinco dígitos.',
+        invalid_values: invalidos
+      }
+    });
+  }
 
-  // Envia el resultado al cliente como JSON.
-  res.json(resultado);
+  let resultado;
+
+  if (zips.length === 1) {
+    resultado = await obtenerContextoPorZip(zips[0]);
+  } else {
+    resultado = await obtenerContextoParaMultiplesZips(zips);
+  }
+
+  return res.json(resultado);
 });
 
-// Inicia el servidor y queda escuchando solicitudes en el puerto configurado.
+// Inicia el servidor HTTP en el puerto configurado.
 app.listen(PORT, () => {
-  // Muestra en consola la URL base del servidor.
   console.log(`Servidor listo: http://localhost:${PORT}`);
-
-  // Muestra en consola una URL de ejemplo para probar el endpoint.
   console.log(`Prueba: http://localhost:${PORT}/context?zip=80203`);
 });

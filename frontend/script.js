@@ -50,7 +50,7 @@ async function consultarZip(zip) {
   // Hace una peticion GET al endpoint /context y protege el ZIP con encodeURIComponent.
   const respuesta = await fetch(`/context?zip=${encodeURIComponent(zip)}`);
 
-  // Convierte la respuesta del backend a JSON y la devuelve.
+  // El backend devuelve JSON tanto para respuestas exitosas como para errores controlados.
   return respuesta.json();
 }
 

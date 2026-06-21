@@ -6,8 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "cli": "node src/index.js",
-    "dev": "node src/server.js"
+    "cli": "node src/index.js", 
+    "dev": "node --watch src/server.js", 
+    "test": "node --test"
   },
   "dependencies": {
     "cors": "^2.8.5",
