@@ -2,516 +2,283 @@
 
 Solución para la prueba técnica de **Integrador IA Agents**.
 
-Esta herramienta recibe un **ZIP code de Estados Unidos** y devuelve un JSON enriquecido con contexto útil sobre esa ubicación. La idea es que este JSON pueda ser consumido directamente por un agente de IA, bot o sistema externo.
+La herramienta recibe uno o varios ZIP codes de Estados Unidos y devuelve un JSON enriquecido con ubicación, clima actual, calidad del aire, un `outdoor_score` y contexto preparado para un agente o bot.
 
----
+## Funcionalidades
 
-## ¿Qué hace esta herramienta?
+- Ejecución desde consola.
+- API HTTP con Express.
+- Frontend visual para probar la herramienta.
+- Soporte para uno o varios ZIP codes.
+- Validación de ZIP de exactamente cinco dígitos.
+- Ubicación mediante Zippopotam.
+- Fallback aproximado por IP mediante ip-api.
+- Clima y calidad del aire mediante Open-Meteo.
+- Consultas de clima y aire en paralelo con `Promise.all`.
+- Conversión de códigos WMO a condiciones legibles.
+- Cálculo de `outdoor_score` entre 1 y 10.
+- Caché sencillo en memoria.
+- Errores estructurados en JSON.
+- Pruebas unitarias con el test runner de Node.js.
 
-A partir de un ZIP code (ES CONOCIDO POR NOSOTROS EN EL SALVADOR COMO CODIOGO POSTAL), el sistema devuelve información como:
-
-- Ubicación: ciudad, estado, país, latitud y longitud.
-- Clima actual usando Open-Meteo.
-- Calidad del aire usando Open-Meteo Air Quality.
-- Fallback por IP usando ip-api.com si el ZIP falla.
-- Condición climática legible a partir del `weathercode` WMO.
-- `outdoor_score` del 1 al 10.
-- `agent_context` listo para ser usado por un agente o bot.
-
-También se agregaron algunos puntos plus de la prueba:
-
-- Servidor HTTP con endpoint `/context`.
-- Soporte para consultar múltiples ZIP codes.
-- Caché en memoria para no repetir consultas ya realizadas durante la misma sesión.
-- Frontend visual para probar la herramienta desde el navegador.
-
----
-
-## Requisitos
-
-Antes de ejecutar el proyecto necesitamos tener instalado:
-
-- Node.js 18 o superior.
-- NPM.
-- Conexión a internet, porque el sistema consulta APIs externas.
-
-Las APIs utilizadas son gratuitas y no requieren API key.
-
----
-
-## Estructura del proyecto
+## Estructura actual
 
 ```text
-location-context-tool-simple/
+location-context-tool/
 ├── backend/
 │   ├── src/
-│   │   ├── index.js              # Ejecuta la herramienta desde consola
-│   │   ├── server.js             # Levanta el servidor HTTP que fue solicitado como punto extra
-│   │   └── locationContext.js    # Contiene la lógica principal del proyecto
+│   │   ├── domain/
+│   │   │   ├── agentContext.js       # Resumen y recomendación para el agente
+│   │   │   ├── outdoorScore.js       # Cálculo del outdoor_score
+│   │   │   └── weatherCodes.js       # Conversión de códigos WMO
+│   │   ├── services/
+│   │   │   ├── airQualityService.js  # Consulta de calidad del aire
+│   │   │   ├── locationService.js    # Ubicación por ZIP y fallback por IP
+│   │   │   └── weatherService.js     # Consulta del clima actual
+│   │   ├── utils/
+│   │   │   └── zipParser.js          # Separación y validación de ZIPs
+│   │   ├── config.js                 # Variables de entorno y URLs
+│   │   ├── index.js                  # Entrada para ejecutar desde consola
+│   │   ├── locationContext.js        # Flujo principal y caché
+│   │   └── server.js                 # Servidor Express y endpoints
+│   ├── test/
+│   │   ├── airQuality.test.js
+│   │   ├── outdoorScore.test.js
+│   │   ├── weatherCodes.test.js
+│   │   └── zipParser.test.js
+│   ├── .env.example
 │   ├── package.json
-│   ├── .env.example              # .ENV el cual podemos copiar o renombrar para dejarlo asi .env, ya que de ahi se manda a llamar los url de las api y otras variables
-│   └── .env
-├── frontend/                     # ESTO LO HICE OPCIONAL COMO UN PLUS DE LA PRUEBAS PARA TENER MEJOR VISUALIZACION DEL RESULTADO SOLICITADO
-│   ├── index.html                # Visualizacion
-│   └── script.js                 # Script necesario para visualizacion del sitio
+│   └── package-lock.json
+├── frontend/
+│   ├── index.html
+│   └── script.js
 └── README.md
 ```
 
----
+### Responsabilidad de cada carpeta
+
+- `domain`: reglas propias del proyecto que no realizan peticiones externas.
+- `services`: funciones que consultan y transforman respuestas de APIs externas.
+- `utils`: funciones pequeñas para procesar y validar la entrada.
+- `test`: pruebas de las reglas que pueden verificarse sin depender de internet.
+- `frontend`: interfaz opcional para consultar ZIPs desde el navegador.
+
+`locationContext.js` coordina todas las partes y construye el JSON final.
+
+## Requisitos
+
+- Node.js 18 o superior.
+- NPM.
+- Conexión a internet.
+
+Las APIs utilizadas son gratuitas y no requieren API key.
 
 ## Instalación
 
-### Paso 1: Entrar a la carpeta del backend
-
-Desde la raíz del proyecto, entrar a la carpeta `backend` y ejecutar este comando desde la consola de visual o el editor o cmd:
+Desde la raíz del proyecto:
 
 ```bash
 cd backend
-```
-
-### Paso 2: Instalar dependencias necesarias para el buen funcionamiento
-
-Ejecutar en consola:
-
-```bash
 npm install
 ```
 
-Esto instalará las dependencias necesarias para que el proyecto funcione.
+Copia `.env.example` como `.env`.
 
----
+En PowerShell:
 
-## Configuración del archivo `.env`
-
-El proyecto usa un archivo `.env` para guardar configuraciones, como el puerto del servidor y las URLs de las APIs, lo hice de esta manera para mayor seguridad y orden.
-
-El proyecto ya incluye un archivo llamado `.env.example`.
-
-Puedes crear tu archivo `.env` copiando el ejemplo con el sigueinte comando:
-
-```bash
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
 ```
 
-
-### Contenido recomendado del archivo `.env`
+## Variables de entorno
 
 ```env
 PORT=3000
-ENABLE_CORS=true
 ZIP_CODE=80203
-
-# Apis necesarias y solicitas en la prueba tecnica
 ZIPPOPOTAMUS_API_URL=https://api.zippopotam.us
 OPEN_METEO_WEATHER_API_URL=https://api.open-meteo.com/v1/forecast
 OPEN_METEO_AIR_API_URL=https://air-quality-api.open-meteo.com/v1/air-quality
 IP_API_URL=http://ip-api.com/json
 ```
 
-Estas variables se leen dentro del archivo:
+- `PORT`: puerto del servidor HTTP.
+- `ZIP_CODE`: ZIP usado por la CLI cuando no se envía un argumento.
+- Las demás variables contienen las URLs base de las APIs externas.
 
-```text
-src/locationContext.js
-```
+## Uso desde consola
 
-Por ejemplo:
+Los siguientes comandos deben ejecutarse dentro de `backend`.
 
-```js
-const ZIPPOPOTAMUS_API_URL = process.env.ZIPPOPOTAMUS_API_URL || 'https://api.zippopotam.us';
-```
-
-Esto significa que el sistema primero intenta usar la URL del `.env`. Si no la encuentra, usa una URL por defecto para evitar que el proyecto falle.
-
----
-
-## Ejecución en consola
-
-### Ejecutar como script por consola
-
-Desde la carpeta `backend`, puedes ejecutar:
+Un ZIP:
 
 ```bash
-node src/index.js 80203
+npm run cli -- 80203
 ```
 
-Esto consulta el ZIP `80203` y muestra el resultado en formato JSON en la terminal.
-
----
-
-### Ejecutar usando el ZIP del `.env`
-
-Si no se envía un ZIP manualmente, el sistema puede usar el ZIP configurado en el archivo `.env`.
-
-Ejemplo:
+Varios ZIP separados por espacios:
 
 ```bash
-node src/index.js
+npm run cli -- 80203 90210 10001
 ```
 
-En este caso usará que es el que he dejado por defecto en .env:
-
-```env
-ZIP_CODE=80203
-```
-
----
-
-## Ejecución masiva
-
-### Consultar múltiples ZIP codes
-
-También se puede consultar varios ZIP codes separados por coma:
+Varios ZIP separados por comas:
 
 ```bash
-node src/index.js 80203,90210,10001
+npm run cli -- 80203,90210,10001
 ```
 
-El sistema devolverá un arreglo con el contexto de cada ZIP.
+Sin argumentos se utiliza `ZIP_CODE` del archivo `.env`:
 
----
+```bash
+npm run cli
+```
 
-## Requerimiento extra: servidor HTTP
+## Servidor HTTP y frontend
 
-### Ejecutar como servidor HTTP
-
-Para levantar el servidor, ejecutar en consola recordar estar en backend:
+Para iniciar el servidor:
 
 ```bash
 npm start
 ```
 
-Al ejecutar el comando anteriro nos dara una url la cual luego se podra abrir en el navegador o probar en Postman el zip=80203 puede ser modificado por otro ejemplo: zip=90210
-
-```text
-http://localhost:3000/context?zip=80203
-```
-
----
-
-## Múltiples consultas desde servidor HTTP
-
-### Consultar múltiples ZIP codes desde HTTP
-
-También se podra enviar varios ZIP codes separados por coma:
-
-```text
-http://localhost:3000/context?zip=80203,90210,10001
-```
-
----
-
-## Frontend agregado como extra para mejor visualización de los resultados
-
-### Usar el frontend visual
-
-El proyecto inclui una vista web para probar la herramienta de forma más visual.
-
-Después de ejecutar:
-
-```bash
-npm start
-```
-
-Abre en tu navegador:
+Después abre:
 
 ```text
 http://localhost:3000
 ```
 
-Desde ahí se puede escribir un ZIP code masivo o individual y ver el resultado en tarjetas visuales.
-
----
-
-## Flujo general de la lógica
-
-El flujo principal del sistema es el siguiente:
-
-1. El usuario envía un ZIP code por consola o por el endpoint `/context`.
-2. El sistema intenta resolver la ubicación usando zippopotam.us.
-3. Si el ZIP es válido, obtiene ciudad, estado, país, latitud y longitud.
-4. Si el ZIP falla o no existe, el sistema usa ip-api.com como fallback para obtener mi direcion por medio de mi ip.
-5. El fallback intenta detectar una ubicación aproximada usando la IP del cliente o del servidor.
-6. Con la latitud y longitud obtenidas, el sistema consulta dos APIs en paralelo usando `Promise.all`:
-   - Open-Meteo para el clima actual.
-   - Open-Meteo Air Quality para la calidad del aire.
-7. El sistema convierte el `weathercode` en una condición legible.
-8. Calcula el `outdoor_score`.
-9. Construye y devuelve un único JSON estructurado.
-
----
-
-## APIs utilizadas
-
-### zippopotam.us
-
-Se usa para resolver un ZIP code de Estados Unidos y obtener:
-
-- Ciudad.
-- Estado.
-- País.
-- Latitud.
-- Longitud.
-
-Ejemplo de uso interno:
+Endpoints disponibles:
 
 ```text
-https://api.zippopotam.us/us/80203
+GET /health
+GET /context?zip=80203
+GET /context?zip=80203,90210,10001
 ```
 
----
+También puedes utilizar Postman o curl:
 
-### Open-Meteo Weather
+```bash
+curl "http://localhost:3000/context?zip=80203"
+```
 
-Se usa para obtener el clima actual con base en latitud y longitud.
+## Flujo principal
 
-Devuelve datos como:
+1. La CLI o el servidor recibe uno o varios ZIP codes.
+2. `zipParser.js` separa y valida los valores.
+3. `locationService.js` consulta Zippopotam para obtener ciudad y coordenadas.
+4. Si Zippopotam falla, se intenta una ubicación aproximada mediante ip-api.
+5. Con las coordenadas se consulta clima y calidad del aire en paralelo.
+6. `weatherCodes.js` transforma el código WMO en una condición legible.
+7. `outdoorScore.js` calcula el puntaje.
+8. `agentContext.js` crea el resumen y la recomendación.
+9. `locationContext.js` construye el JSON final y lo guarda en caché.
 
-- Temperatura actual.
-- Velocidad del viento.
-- Weathercode.
+## Mapeo de condiciones WMO
 
----
+Open-Meteo devuelve un número en `weathercode`. El proyecto lo agrupa así:
 
-### Open-Meteo Air Quality
+| Código | Condición |
+| --- | --- |
+| 0 | Despejado |
+| 1, 2 | Parcialmente nublado |
+| 3 | Nublado |
+| 45, 48 | Niebla |
+| 51, 53, 55, 56, 57 | Llovizna |
+| 61, 63, 65, 66, 67 | Lluvia |
+| 71, 73, 75, 77 | Nieve |
+| 80, 81, 82 | Chubascos |
+| 85, 86 | Chubascos de nieve |
+| 95, 96, 99 | Tormenta |
 
-Se usa para obtener información sobre calidad del aire.
+Los códigos que no pertenecen a un grupo se muestran como `Condición desconocida`.
 
-Devuelve datos como:
+## Lógica del outdoor score
 
-- AQI US.
-- Nivel de calidad del aire.
-- Contaminante dominante.
+El puntaje comienza en 10 y resta puntos según cuatro factores:
 
----
+- Temperatura: hasta 3 puntos.
+- Velocidad del viento: hasta 3 puntos.
+- Condición climática: hasta 4 puntos.
+- Calidad del aire: hasta 4 puntos.
 
-### ip-api.com
-
-Se usa como fallback cuando el ZIP no se puede resolver.
-
-Esto permite obtener una ubicación aproximada por IP y evitar que el proceso se caiga.
-
----
+El resultado siempre se mantiene entre 1 y 10. La fórmula es una regla propia, sencilla y explicable; no representa un índice meteorológico oficial.
 
 ## Fallback por IP
 
-Si el ZIP no existe o zippopotam.us falla, el sistema intenta obtener una ubicación aproximada usando ip-api.com.
-
-El JSON de respuesta indica de dónde salió la ubicación usando el campo `source`.
-
-Ejemplo cuando el ZIP funciona:
+Si la consulta por ZIP falla, `locationService.js` intenta obtener una ubicación mediante ip-api. El resultado indica qué fuente se utilizó:
 
 ```json
 "source": "zip"
 ```
 
-Ejemplo cuando se usa fallback por IP:
+o:
 
 ```json
 "source": "ip_fallback"
 ```
 
-Si tanto el ZIP como el fallback por IP fallan, el sistema devuelve un error estructurado en JSON. No se detiene el proceso ni se produce un crash.
+La IP observada corresponde al equipo o servidor que ejecuta el backend, por lo que puede no representar al usuario final en un despliegue remoto.
 
----
+## Caché
 
-## Agrupación de weathercodes WMO
-
-Open-Meteo devuelve un número llamado `weathercode`.
-
-Ese número representa una condición climática según el estándar WMO. Para que el resultado sea más fácil de leer, el sistema transforma ese número en texto.
-
-La función encargada de esto es:
-
-```text
-mapearCondicion()
-```
-
-La agrupación usada es la siguiente:
-
-| Weathercode        | Condición             |
-| ------------------ | --------------------- |
-| 0                  | Despejado             |
-| 1, 2               | Parcialmente nublado  |
-| 3                  | Nublado               |
-| 45, 48             | Niebla                |
-| 51, 53, 55, 56, 57 | Llovizna              |
-| 61, 63, 65, 66, 67 | Lluvia                |
-| 71, 73, 75, 77     | Nieve                 |
-| 80, 81, 82         | Chubascos             |
-| 85, 86             | Chubascos de nieve    |
-| 95, 96, 99         | Tormenta              |
-| Otro código        | Condición desconocida |
-
-No existe una única clasificación correcta. Esta agrupación se hizo simple, coherente y fácil de explicar.
-
----
-
-## Lógica del outdoor_score
-
-El `outdoor_score` es un número del 1 al 10 que indica qué tan buenas son las condiciones para estar al aire libre.
-
-La función encargada de calcularlo es:
-
-```text
-calcularOutdoorScore()
-```
-
-La lógica inicia con 10 puntos y va restando puntos según las condiciones actuales.
-
-Al final, el resultado se limita entre 1 y 10.
-
----
-
-### Temperatura
-
-| Temperatura                | Penalización |
-| -------------------------- | ------------ |
-| 18°C a 27°C                | No resta     |
-| 12°C a 17°C o 28°C a 32°C  | Resta 1      |
-| 5°C a 11°C o 33°C a 38°C   | Resta 2      |
-| Menor a 5°C o mayor a 38°C | Resta 3      |
-
-La temperatura ideal para estar al aire libre se considera entre 18°C y 27°C.
-
----
-
-### Velocidad del viento
-
-| Viento         | Penalización |
-| -------------- | ------------ |
-| Hasta 20 km/h  | No resta     |
-| 21 a 35 km/h   | Resta 1      |
-| 36 a 50 km/h   | Resta 2      |
-| Más de 50 km/h | Resta 3      |
-
-La prueba no define una fórmula exacta para el outdoor_score.
-Por eso elegi una lógica de penalización: el puntaje inicia en 10, que representa condiciones ideales, y se restan puntos cuando algún factor reduce la comodidad o seguridad para estar al aire libre, como viento fuerte, lluvia, temperaturas extremas o mala calidad del aire.
-
----
-
-### Condición climática
-
-| Condición                        | Penalización |
-| -------------------------------- | ------------ |
-| Despejado o parcialmente nublado | No resta     |
-| Nublado, niebla o desconocido    | Resta 1      |
-| Llovizna                         | Resta 2      |
-| Lluvia, chubascos o nieve        | Resta 3      |
-| Tormenta                         | Resta 4      |
-
-Las tormentas tienen la mayor penalización porque pueden representar riesgo para actividades al aire libre.
-
----
-
-### Calidad del aire AQI US
-
-| AQI US      | Penalización |
-| ----------- | ------------ |
-| 0 a 50      | No resta     |
-| 51 a 100    | Resta 1      |
-| 101 a 150   | Resta 2      |
-| 151 a 200   | Resta 3      |
-| Mayor a 200 | Resta 4      |
-
-Una mala calidad del aire reduce el puntaje porque puede afectar la salud, especialmente en actividades al aire libre.
-
----
-
-## Ejemplo de salida
-
-Ejemplo de respuesta para el ZIP `80203`:
+El caché utiliza un `Map` en memoria. Si se consulta nuevamente el mismo ZIP durante la sesión, se devuelve el resultado guardado:
 
 ```json
-{
-  "ok": true,
-  "input": {
-    "zip": "80203",
-    "source": "zip"
-  },
-  "location": {
-    "city": "Denver",
-    "state": "Colorado",
-    "country": "US",
-    "lat": 39.7313,
-    "lon": -104.9829
-  },
-  "weather": {
-    "temperature_c": 14.5,
-    "windspeed_kmh": 18.2,
-    "weathercode": 2,
-    "condition": "Parcialmente nublado"
-  },
-  "air_quality": {
-    "aqi_us": 38,
-    "level": "Good",
-    "dominant_pollutant": "pm2_5"
-  },
-  "outdoor_score": 7,
-  "agent_context": {
-    "summary": "Estas en Denver, Colorado. Temperatura 14.5°C, viento de 18.2 km/h y condición parcialmente nublada.",
-    "recommendation": "Buenas condiciones para actividades al aire libre.",
-    "scoring_basis": "El outdoor_score considera temperatura, viento, condición climática y AQI US."
-  }
-}
+"cache": { "hit": true }
 ```
 
----
+El caché se elimina cuando se reinicia el proceso.
 
-## Ejemplo de error estructurado
+## Pruebas
 
-Si ocurre un error, el sistema devuelve un JSON controlado.
+Para ejecutar las pruebas:
 
-Ejemplo:
-
-```json
-{
-  "ok": false,
-  "error": {
-    "message": "No se pudo obtener la ubicación",
-    "detail": "El ZIP no fue encontrado y el fallback por IP también falló."
-  }
-}
+```bash
+npm test
 ```
 
-Esto cumple con el requisito de no hacer crash del proceso que se me solicita en la prueba tecnica.
+Las pruebas cubren:
 
----
+- Separación y validación de ZIP codes.
+- Conversión de códigos WMO.
+- Reglas principales del `outdoor_score`.
+- Clasificación del AQI y contaminante dominante.
 
-## Caché en memoria
+## Comandos disponibles
 
-El proyecto incluye un caché simple en memoria.
+| Comando | Descripción |
+| --- | --- |
+| `npm start` | Inicia el servidor y el frontend |
+| `npm run dev` | Inicia el servidor y reinicia al detectar cambios |
+| `npm run cli -- 80203` | Ejecuta una consulta desde consola |
+| `npm test` | Ejecuta las pruebas unitarias |
 
-Esto significa que si consultas el mismo ZIP varias veces durante la misma sesión, el sistema puede devolver la información guardada sin volver a consultar todas las APIs.
+## Problemas comunes
 
-Esto ayuda a:
+### El puerto 3000 está ocupado
 
-- Reducir llamadas repetidas.
-- Mejorar el tiempo de respuesta.
-- Evitar uso innecesario de APIs externas.
+Si aparece `EADDRINUSE`, significa que otro proceso ya utiliza el puerto. Detén el servidor anterior con `Ctrl + C` o utiliza temporalmente otro puerto:
 
-El caché se reinicia cuando se detiene el servidor.
+```powershell
+$env:PORT=3001
+npm start
+```
 
----
+Después abre `http://localhost:3001`.
 
-## Resumen
+### Todos los resultados muestran fallback por IP
 
-Este proyecto cumple con los requisitos principales de la prueba técnica:
+Comprueba que esta variable exista en `.env`:
 
-- Recibe ZIP por consola o variable.
-- Resuelve ubicación con zippopotam.us.
-- Usa fallback por IP con ip-api.com.
-- Consulta clima y calidad del aire con Open-Meteo.
-- Usa `Promise.all` para llamadas en paralelo.
-- Devuelve un único JSON estructurado.
-- Incluye `condition`.
-- Calcula `outdoor_score`.
-- Incluye `agent_context`.
-- Maneja errores sin romper el proceso.
-- Incluye README con explicación.
-- Se puede ejecutar con un ZIP real de Estados Unidos.
+```env
+ZIPPOPOTAMUS_API_URL=https://api.zippopotam.us
+```
 
-También incluye los puntos plus:
+También verifica que `config.js` exporte `ZIPPOPOTAMUS_API_URL`.
 
-- Servidor HTTP.
-- Endpoint `/context`.
-- Soporte para múltiples ZIP codes.
+## Limitaciones conocidas
+
+- El resultado depende de la disponibilidad de APIs externas.
+- El fallback por IP es aproximado.
+- El caché solo existe dentro del proceso actual.
+- Tailwind CSS y Lucide Icons se cargan desde CDN en el frontend.
