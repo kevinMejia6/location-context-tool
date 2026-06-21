@@ -1,14 +1,14 @@
 # Location Context Tool
 
-Solución para la prueba técnica de **Integrador IA Agents**.
+Este proyecto lo realicé como solución para la prueba técnica de **Integrador IA Agents**.
 
-La herramienta recibe uno o varios ZIP codes de Estados Unidos **(Mas conocido aqui en El Salvador como codigo postal)** y devuelve un JSON enriquecido con ubicación, clima actual, calidad del aire, un `outdoor_score` y contexto preparado para un agente o bot.
+La herramienta recibe uno o varios ZIP codes de Estados Unidos, que aquí en El Salvador conocemos como códigos postales, y devuelve un JSON con la ubicación, el clima actual, la calidad del aire, un `outdoor_score` y un contexto preparado para que lo pueda usar un agente o bot.
 
 ## Funcionalidades
 
 - Ejecución desde consola.
 - API HTTP con Express.
-- Frontend visual para probar la herramienta **(Fue agregado como extra para tener mejor visualizacion de los resultados, y consumo de la api creada.)**
+- Frontend visual que agregué como extra para probar la API y entender mejor los resultados.
 - Soporte para uno o varios ZIP codes.
 - Validación de ZIP de exactamente cinco dígitos.
 - Ubicación mediante Zippopotam.
@@ -51,7 +51,7 @@ location-context-tool/
 │   └── package-lock.json
 ├── frontend/
 │   ├── index.html
-│   └── script.js
+│   └── script.js                     # Consulta la API y muestra los resultados
 └── README.md
 ```
 
@@ -167,15 +167,32 @@ curl "http://localhost:3000/context?zip=80203"
 2. `zipParser.js` separa y valida los valores.
 3. `locationService.js` consulta Zippopotam para obtener ciudad y coordenadas.
 4. Si Zippopotam falla, se intenta una ubicación aproximada mediante ip-api.
-5. Con las coordenadas se consulta clima y calidad del aire en paralelo.
+5. Con las coordenadas se consulta el clima y la calidad del aire al mismo tiempo con `Promise.all`.
 6. `weatherCodes.js` transforma el código WMO en una condición legible.
 7. `outdoorScore.js` calcula el puntaje.
 8. `agentContext.js` crea el resumen y la recomendación.
 9. `locationContext.js` construye el JSON final y lo guarda en caché.
 
+## Consultas en paralelo
+
+Después de obtener la latitud y longitud necesito consultar dos servicios: el clima y la calidad del aire. Ninguna de estas consultas depende de la otra, porque ambas solamente necesitan las coordenadas.
+
+Por eso decidí ejecutarlas al mismo tiempo con `Promise.all`:
+
+```js
+const [clima, aire] = await Promise.all([
+  obtenerClima(ubicacion.lat, ubicacion.lon),
+  obtenerCalidadAire(ubicacion.lat, ubicacion.lon)
+]);
+```
+
+De esta manera no tengo que esperar que termine la consulta del clima para comenzar la consulta del aire. Cuando las dos terminan, guardo cada resultado en su variable y continúo con el cálculo del `outdoor_score`.
+
+Si cualquiera de las dos consultas falla, el error pasa al `catch` de `obtenerContextoPorZip` y se devuelve un error con la misma estructura que utilizo en el resto del proyecto.
+
 ## Mapeo de condiciones WMO
 
-Open-Meteo devuelve un número en `weathercode`. En el proyecto lo agrupe así:
+Open-Meteo devuelve un número en `weathercode`. En el proyecto lo agrupé así:
 
 | Código             | Condición            |
 | ------------------ | -------------------- |
@@ -191,6 +208,25 @@ Open-Meteo devuelve un número en `weathercode`. En el proyecto lo agrupe así:
 | 95, 96, 99         | Tormenta             |
 
 Los códigos que no pertenecen a un grupo se muestran como `Condición desconocida`.
+
+## Calidad del aire y contaminante dominante
+
+Open-Meteo devuelve el AQI general y también un componente AQI para cada contaminante. Para encontrar el contaminante dominante comparo esos componentes y selecciono el que tenga el valor más alto.
+
+No comparo directamente las concentraciones de PM2.5, PM10, ozono y los demás contaminantes porque utilizan escalas o unidades diferentes. Comparar sus componentes AQI me permite usar una misma escala.
+
+En el JSON mantengo nombres técnicos como `pm2_5`, `pm10` u `ozone`. En el frontend los convierto a nombres más fáciles de entender:
+
+| Valor del JSON       | Nombre mostrado en el frontend       |
+| -------------------- | ------------------------------------- |
+| `pm2_5`              | Partículas finas (PM2.5)              |
+| `pm10`               | Partículas inhalables (PM10)          |
+| `ozone`              | Ozono (O₃)                            |
+| `nitrogen_dioxide`   | Dióxido de nitrógeno (NO₂)            |
+| `sulphur_dioxide`    | Dióxido de azufre (SO₂)               |
+| `carbon_monoxide`    | Monóxido de carbono (CO)              |
+
+Esta traducción solamente cambia la forma en que se muestra el dato. El valor original del backend se conserva dentro del JSON.
 
 ## Lógica del outdoor score
 
@@ -274,24 +310,24 @@ Las pruebas cubren:
 
 ### El puerto 3000 está ocupado
 
-Si aparece `EADDRINUSE`, significa que otro proceso ya utiliza el puerto. Detengan el servidor anterior con `Ctrl + C` o utiliza temporalmente otro puerto:
+Si aparece `EADDRINUSE`, significa que otro proceso ya utiliza el puerto. Puedo detener el servidor anterior con `Ctrl + C` o utilizar temporalmente otro puerto:
 
 ```powershell
 $env:PORT=3001
 npm start
 ```
 
-Después abrir `http://localhost:3001`.
+Después puedo abrir `http://localhost:3001`.
 
 ### Todos los resultados muestran fallback por IP
 
-Comprobar que esta variable exista en `.env`:
+Primero compruebo que esta variable exista en `.env`:
 
 ```env
 ZIPPOPOTAMUS_API_URL=https://api.zippopotam.us
 ```
 
-También verificar que `config.js` exporte `ZIPPOPOTAMUS_API_URL`.
+También verifico que `config.js` exporte `ZIPPOPOTAMUS_API_URL`.
 
 ## Limitaciones conocidas
 

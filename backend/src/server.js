@@ -1,35 +1,37 @@
-// Este archivo configura y arranca el servidor HTTP usando Express.
-//  Define las rutas para manejar las solicitudes de contexto basadas en ZIP codes y sirve los archivos estáticos del frontend.
 
-const express = require('express'); // Importamos el framework Express para crear el servidor HTTP y manejar las rutas y solicitudes.
-const cors = require('cors'); // Importamos el middleware CORS para permitir solicitudes desde el frontend que puede estar en un origen diferente al del backend.
-const path = require('path'); // Importamos el módulo path para manejar rutas de archivos y directorios de manera segura y compatible con diferentes sistemas operativos.
-const { PORT } = require('./config'); // Importamos la configuración del puerto desde el archivo config.js, que carga las variables de entorno y proporciona valores predeterminados.
+// En este archivo creamos el servidor con Express, muestra el frontend y recibe las
+// consultas de uno o varios ZIP desde el navegador o cualquier cliente HTTP.
+
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const { PORT } = require('./config');
 
 const {
   obtenerContextoPorZip,
   obtenerContextoParaMultiplesZips
-} = require('./locationContext'); // Importamos las funciones principales para obtener el contexto de ubicación a partir de uno o varios ZIP codes, que se encargan de la lógica de negocio para procesar las solicitudes y devolver la información requerida.
+} = require('./locationContext');
 
 const {
   textoAListaDeZips,
   buscarZipsInvalidos
-} = require('./utils/zipParser'); // Importamos las funciones de utilidad para procesar el texto de entrada y validar los ZIPs, que se utilizan para manejar las solicitudes entrantes y asegurar que los datos sean correctos antes de procesarlos.
+} = require('./utils/zipParser');
 
-const app = express(); // Creamos una instancia de la aplicación Express, que será nuestro servidor HTTP para manejar las solicitudes y respuestas.
+const app = express();//Creamos la aplicación de Express para configurar el servidor y las rutas.
 
-app.use(cors()); // Habilitamos CORS para permitir que el frontend pueda hacer solicitudes a este servidor desde un origen diferente.
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../../frontend')));
 
-app.use(express.json()); // Habilitamos el middleware para parsear el cuerpo de las solicitudes en formato JSON, lo que facilita la recepción de datos estructurados desde el frontend o clientes que consuman la API.
+// Esta ruta solo confirma que el servidor esta funcionando, sin consultar APIs externas.
 
-app.use(express.static(path.join(__dirname, '../../frontend'))); // Servimos los archivos estáticos del frontend desde el directorio especificado, lo que permite que el frontend se cargue correctamente cuando se accede al servidor a través de un navegador. La ruta se construye utilizando path.join para asegurar la compatibilidad entre sistemas operativos y evitar problemas con las rutas relativas.
-
-// Permite comprobar rápidamente que el servidor está funcionando.
 app.get('/health', (req, res) => {
   res.json({ ok: true, message: 'Servidor funcionando' });
 });
 
-// Recibe uno o varios ZIP codes y devuelve su contexto en JSON.
+// En esta ruta recibimos el ZIP desde la URL, lo validamos y devolvemos su contexto.
+// Si viene vacio o tiene un formato incorrecto respondemos con un error 400.
+
 app.get('/context', async (req, res) => {
   const zips = textoAListaDeZips(req.query.zip);
 
@@ -43,9 +45,9 @@ app.get('/context', async (req, res) => {
     });
   }
 
-// Validamos que cada ZIP tenga el formato correcto de cinco dígitos. Si hay ZIPs inválidos, respondemos con un error detallando cuáles son.  
-  const invalidos = buscarZipsInvalidos(zips);
-  if (invalidos.length > 0) {
+  const invalidos = buscarZipsInvalidos(zips);// Validamos los ZIP y buscamos cuales son invalidos para mostrar un error claro.
+
+  if (invalidos.length > 0) { //Validamos si hay zip invalidos y si hay le mostramos el mensaje al usuario.
     return res.status(400).json({
       ok: false,
       error: {
@@ -56,18 +58,14 @@ app.get('/context', async (req, res) => {
     });
   }
 
-  let resultado;
-
-  if (zips.length === 1) {
-    resultado = await obtenerContextoPorZip(zips[0]);
-  } else {
-    resultado = await obtenerContextoParaMultiplesZips(zips);
-  }
+  const resultado = zips.length === 1 // Si solo hay un ZIP, hacemos una consulta simple, sino usamos la función para múltiples consultas.
+    ? await obtenerContextoPorZip(zips[0])
+    : await obtenerContextoParaMultiplesZips(zips);
 
   return res.json(resultado);
 });
 
-// Inicia el servidor HTTP en el puerto configurado.
+// Iniciamos el servidor en el puerto configurado y mostramos las URLs para probarlo.
 app.listen(PORT, () => {
   console.log(`Servidor listo: http://localhost:${PORT}`);
   console.log(`Prueba: http://localhost:${PORT}/context?zip=80203`);

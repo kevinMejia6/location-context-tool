@@ -1,75 +1,42 @@
-// ==========================================================
-// FRONTEND
-// Este archivo controla la parte visual de la aplicacion.
-// Lee el ZIP, llama al backend y muestra los resultados.
-// ==========================================================
+// Este archivo controla lo que pasa en la pagina cuando el usuario consulta un ZIP.
+// Leemos el formulario, llamamos al backend y mostramos los resultados o errores.
 
-// Busca en el HTML el formulario donde el usuario escribe el ZIP.
 const formularioZip = document.getElementById('formularioZip');
-
-// Busca en el HTML el input donde se escribe uno o varios ZIP codes.
 const inputZip = document.getElementById('inputZip');
-
-// Busca en el HTML el bloque que muestra el mensaje de carga.
 const estadoCarga = document.getElementById('estadoCarga');
-
-// Busca en el HTML el contenedor donde se insertan las tarjetas de resultado.
 const contenedorResultados = document.getElementById('contenedorResultados');
 
-/**
- * Evita que texto externo rompa el HTML.
- * Tambien previene que una respuesta externa inserte HTML peligroso.
- */
+// Recibimos cualquier valor que venga de las APIs y reemplazamos los caracteres
+// especiales para evitar que se interpreten como etiquetas o scripts.
+
 function escaparHtml(valor) {
-  // Convierte cualquier valor recibido a texto; si viene null/undefined usa texto vacio.
   return String(valor ?? '')
-    // Reemplaza & para que no se interprete como parte de una entidad HTML.
     .replaceAll('&', '&amp;')
-    // Reemplaza < para que no se pueda abrir una etiqueta HTML.
     .replaceAll('<', '&lt;')
-    // Reemplaza > para que no se pueda cerrar una etiqueta HTML.
     .replaceAll('>', '&gt;')
-    // Reemplaza comillas dobles para que no rompan atributos HTML.
     .replaceAll('"', '&quot;')
-    // Reemplaza comillas simples para que no rompan atributos HTML.
     .replaceAll("'", '&#039;');
 }
+// Recibimos true o false para mostrar u ocultar el mensaje de carga.
 
-/**
- * Muestra u oculta el mensaje de carga.
- */
 function mostrarCarga(mostrar) {
-  // Si mostrar es false agrega la clase hidden; si mostrar es true la quita.
   estadoCarga.classList.toggle('hidden', !mostrar);
 }
+// Recibimos uno o varios ZIP, los enviamos al endpoint /context y devolvemos
+// el JSON que responde el backend.
 
-/**
- * Llama al backend enviando el ZIP.
- */
 async function consultarZip(zip) {
-  // Hace una peticion GET al endpoint /context y protege el ZIP con encodeURIComponent.
   const respuesta = await fetch(`/context?zip=${encodeURIComponent(zip)}`);
-
-  // El backend devuelve JSON tanto para respuestas exitosas como para errores controlados.
   return respuesta.json();
 }
+// Como el backend puede devolver un objeto o una lista, aqui nos aseguramos de
+// trabajar siempre con una lista para poder mostrar los resultados de la misma forma.
 
-/**
- * Convierte el resultado en lista.
- * Esto sirve porque el backend puede devolver:
- * - Un objeto si consultas un ZIP.
- * - Un array si consultas varios ZIPs.
- */
 function normalizarALista(resultado) {
-  // Si ya es un array lo devuelve igual; si es un objeto lo mete dentro de un array.
   return Array.isArray(resultado) ? resultado : [resultado];
 }
-
-/**
- * Tarjeta visual para errores.
- */
+// Recibimos un error y devolvemos el HTML de una tarjeta con su mensaje y detalle.
 function tarjetaError(error) {
-  // Devuelve un bloque HTML como texto para mostrar un error amigable en pantalla.
   return `
     <article class="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800 shadow-sm">
       <div class="flex items-start gap-3">
@@ -95,12 +62,8 @@ function tarjetaError(error) {
     </article>
   `;
 }
-
-/**
- * Pequena tarjeta de metrica.
- */
+// Recibimos el icono, titulo y valor para crear una tarjeta pequeña de una metrica.
 function metrica(icono, titulo, valor) {
-  // Devuelve una tarjeta pequena con icono, titulo y valor.
   return `
     <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
       <div class="mb-2 flex items-center gap-2 text-sm font-bold text-slate-600">
@@ -114,89 +77,59 @@ function metrica(icono, titulo, valor) {
     </div>
   `;
 }
-
-/**
- * Devuelve un color visual segun el outdoor score.
- */
+// Recibimos el outdoor score y devolvemos las clases de color que le corresponden.
 function claseOutdoorScore(score) {
-  // Score alto: usa color verde.
   if (score >= 8) return 'bg-emerald-600 shadow-emerald-600/20';
-
-  // Score medio-alto: usa color azul.
   if (score >= 5) return 'bg-blue-600 shadow-blue-600/20';
-
-  // Score bajo-medio: usa color amarillo.
   if (score >= 3) return 'bg-amber-500 shadow-amber-500/20';
-
-  // Score muy bajo: usa color rojo.
   return 'bg-red-600 shadow-red-600/20';
 }
 
-/**
- * Tarjeta principal de contexto.
- */
+// Recibimos el nombre tecnico del contaminante y devolvemos un texto mas facil de entender.
+function nombreContaminante(contaminante) {
+  const nombres = {
+    pm2_5: 'Partículas finas (PM2.5)',
+    pm10: 'Partículas inhalables (PM10)',
+    ozone: 'Ozono (O₃)',
+    nitrogen_dioxide: 'Dióxido de nitrógeno (NO₂)',
+    sulphur_dioxide: 'Dióxido de azufre (SO₂)',
+    carbon_monoxide: 'Monóxido de carbono (CO)',
+    unknown: 'No disponible'
+  };
+
+  return nombres[contaminante] || contaminante || 'No disponible';
+}
+
+// Recibimos todo el contexto de un ZIP y devolvemos el HTML de la tarjeta principal.
+// Si el contexto trae un error, usamos tarjetaError en lugar de mostrar las metricas.
 function tarjetaContexto(contexto) {
-  // Si el backend dice que no fue exitoso, se muestra una tarjeta de error.
   if (!contexto.ok) {
     return tarjetaError(contexto.error);
   }
-
-  // Define el texto que indica si la ubicacion salio del ZIP o del fallback por IP.
   const origen = contexto.input?.source === 'zip'
     ? 'Encontrado por ZIP'
     : 'Fallback por IP';
-
-  // Obtiene la ciudad desde la respuesta; si no existe, usa un texto por defecto.
   const ciudad = contexto.location?.city || 'Ciudad no disponible';
-
-  // Obtiene el estado desde la respuesta; si no existe, usa texto vacio.
   const estado = contexto.location?.state || '';
-
-  // Obtiene el pais desde la respuesta; si no existe, usa texto vacio.
   const pais = contexto.location?.country || '';
-
-  // Obtiene la latitud; si no existe, muestra un guion.
   const lat = contexto.location?.lat ?? '-';
-
-  // Obtiene la longitud; si no existe, muestra un guion.
   const lon = contexto.location?.lon ?? '-';
-
-  // Obtiene la temperatura en Celsius; si no existe, muestra un guion.
   const temperatura = contexto.weather?.temperature_c ?? '-';
-
-  // Obtiene la velocidad del viento; si no existe, muestra un guion.
   const viento = contexto.weather?.windspeed_kmh ?? '-';
-
-  // Obtiene la condicion del clima; si no existe, muestra un guion.
   const condicion = contexto.weather?.condition || '-';
-
-  // Obtiene el AQI US; si no existe, muestra un guion.
   const aqi = contexto.air_quality?.aqi_us ?? '-';
-
-  // Obtiene el nivel textual de calidad del aire.
   const nivelAire = contexto.air_quality?.level || '-';
-
-  // Obtiene el contaminante dominante calculado por el backend.
-  const contaminante = contexto.air_quality?.dominant_pollutant || '-';
-
-  // Obtiene el outdoor score; si no existe, muestra un guion.
+  const contaminante = nombreContaminante(
+    contexto.air_quality?.dominant_pollutant
+  );
   const score = contexto.outdoor_score ?? '-';
-
-  // Si agent_context viene como texto, lo usa directamente.
-  // Si viene como objeto, toma la propiedad summary.
   const agentContext = typeof contexto.agent_context === 'string'
     ? contexto.agent_context
     : contexto.agent_context?.summary || 'Sin contexto disponible.';
-
-  // Si agent_context es un objeto, toma la recomendacion.
   const recomendacion = typeof contexto.agent_context === 'object'
     ? contexto.agent_context?.recommendation || ''
     : '';
-
-  // Convierte todo el contexto a JSON formateado para mostrarlo en el detalle.
   const json = escaparHtml(JSON.stringify(contexto, null, 2));
-
-  // Devuelve toda la tarjeta HTML del resultado.
   return `
     <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
 
@@ -271,78 +204,43 @@ function tarjetaContexto(contexto) {
     </article>
   `;
 }
-
-/**
- * Evento principal del formulario.
- */
+// Cuando enviamos el formulario evitamos que la pagina se recargue, validamos el ZIP,
+// mostramos la carga, consultamos el backend y colocamos las tarjetas en la pagina.
 formularioZip.addEventListener('submit', async (evento) => {
-  // Evita que el navegador recargue la pagina al enviar el formulario.
   evento.preventDefault();
-
-  // Lee el ZIP escrito por el usuario y quita espacios al inicio/final.
   const zip = inputZip.value.trim();
-
-  // Limpia resultados anteriores antes de hacer una nueva consulta.
   contenedorResultados.innerHTML = '';
-
-  // Si el usuario no escribio ZIP, muestra error y detiene el flujo.
   if (!zip) {
-    // Inserta una tarjeta de error en el contenedor de resultados.
     contenedorResultados.innerHTML = tarjetaError({
       message: 'Escribe un ZIP. Ejemplo: 80203'
     });
-
-    // Vuelve a crear los iconos porque se inserto HTML nuevo.
     lucide.createIcons();
-
-    // Termina la funcion para no llamar al backend sin ZIP.
     return;
   }
-
-  // Muestra el bloque de carga mientras se consulta el backend.
   mostrarCarga(true);
 
   try {
-    // Llama al backend con el ZIP ingresado.
     const resultado = await consultarZip(zip);
-
-    // Convierte el resultado a lista, crea una tarjeta por item y une el HTML.
     contenedorResultados.innerHTML = normalizarALista(resultado)
       .map(tarjetaContexto)
       .join('');
-
-    // Activa los iconos Lucide que fueron agregados dentro del HTML nuevo.
     lucide.createIcons();
   } catch (error) {
-    // Si falla fetch u ocurre un error inesperado, muestra una tarjeta de error.
     contenedorResultados.innerHTML = tarjetaError({
       message: error.message
     });
-
-    // Activa los iconos Lucide dentro de la tarjeta de error.
     lucide.createIcons();
   } finally {
-    // Oculta el bloque de carga sin importar si hubo exito o error.
     mostrarCarga(false);
   }
 });
-
-/**
- * Botones rapidos.
- */
+// Recorremos todos los botones de ejemplo para agregarles su evento de clic.
 document.querySelectorAll('.zip-rapido').forEach((boton) => {
-  // A cada boton rapido se le agrega un evento click.
+  // Al hacer clic copiamos el ZIP del boton al input y dejamos el campo seleccionado.
   boton.addEventListener('click', () => {
-    // Copia el ZIP del atributo data-zip al input.
     inputZip.value = boton.dataset.zip;
-
-    // Enfoca el input para que el usuario pueda editar o enviar rapido.
     inputZip.focus();
   });
 });
-
-/**
- * Carga los iconos de Lucide.
- */
-// Reemplaza todos los <i data-lucide="..."> iniciales por iconos SVG.
+// Convierte los marcadores data-lucide iniciales en iconos SVG.
 lucide.createIcons();

@@ -1,4 +1,9 @@
-// Traduce el nivel de calidad del aire para mostrarlo en español.
+
+// Aqui convertimos los datos tecnicos en un texto que puede usar directamente un agente.
+
+// Recibimos el nivel de calidad del aire en ingles y devolvemos su traduccion al español.
+// Si el nivel no existe en la lista, devolvemos "desconocida".
+
 function traducirNivelAire(nivel) {
   const traducciones = {
     Good: 'buena',
@@ -13,7 +18,8 @@ function traducirNivelAire(nivel) {
   return traducciones[nivel] || 'desconocida';
 }
 
-// Crea un resumen amigable y una recomendación listos para que los use un agente.
+// Recibimos la ubicacion, el clima, el aire y el score para crear tres textos:
+// un resumen de las condiciones, una recomendacion y una explicacion general del puntaje con un mensaje amigable para el usuario.
 function crearAgentContext(ubicacion, clima, aire, outdoorScore) {
   let recomendacion;
 
@@ -30,12 +36,17 @@ function crearAgentContext(ubicacion, clima, aire, outdoorScore) {
 
   const condicion = clima.condition.toLowerCase();
   const nivelAire = traducirNivelAire(aire.level);
+  
+  // Creamos un resumen amigable para el usuario con toda la información relevante.
+  
   const resumen =
     `¡Aquí tienes el panorama! En ${ubicacion.city}, ${ubicacion.state}, ` +
     `el clima está ${condicion} y la temperatura es de ${clima.temperature_c} °C. ` +
     `El viento es de ${clima.windspeed_kmh} km/h y la calidad del aire es ` +
     `${nivelAire}, con un AQI de ${aire.aqi_us}.`;
 
+  // Explicamos de manera sencilla cómo se calcula el puntaje y qué significa para el usuario.
+  
   return {
     summary: resumen,
     recommendation: recomendacion,
